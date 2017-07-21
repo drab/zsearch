@@ -1,0 +1,63 @@
+#!/usr/bin/env ruby
+
+require "zsearch"
+
+def usage
+  puts <<-EOS
+A simple command line application to search for users, tickets or organizations.
+
+  Usage:
+    zsearch entity field [value]
+    zsearch help [entity]
+
+  Examples:
+    zsearch users _id 1
+    zsearch users active true
+    zsearch tickets status solved
+    zsearch tickets tags "Puerto Rico"
+    zsearch organizations details     (search for an empty value)
+
+  Further help:
+    zsearch help <ENTITY>             list the searchable fields of ENTITY (users, tickets or organizations)
+    (e.g. 'search help users')
+  EOS
+end
+
+def controller(type)
+  Object.const_get("#{type.capitalize}Controller").new
+end
+
+ENTITIES = {
+    "users" => User,
+    "tickets" => Ticket,
+    "organizations" => Organization
+}
+
+begin
+  if [2,3].include? ARGV.length
+    case ARGV[0]
+      when *ENTITIES.keys
+        results = controller(ARGV[0]).search(ARGV[1], ARGV[2])
+        if results.empty?
+          puts %Q(Sorry, we couldn't find #{ARGV[0].to_s} that match your search criteria)
+        else
+          ap results
+        end
+      when "help"
+        entity = ARGV[1]
+        if ENTITIES.keys.include?(entity)
+          puts "You can search for the following fields on #{entity}:"
+          puts ENTITIES[entity].fields
+        else
+          usage
+        end
+      else
+        puts %Q(Unknown entity "#{ARGV[0]}").red
+    end
+  else
+    usage
+  end
+rescue FieldNotValid => fne
+  puts fne.message.red
+  puts %Q(Run "zsearch help #{ARGV[0]}" to list the searchable fields)
+end
